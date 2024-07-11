@@ -4,3 +4,6 @@ Important note: The measure number algorithm breaks when there is a key signatur
 It is recommended to set the plugin to a shortcut (Plugins > Manage Plugins... > String Chord Playability Identifier > Edit shortcut > double click on the item).  
   
 For those who are reading the code, notice (especially on lines 299 and 300) that I've made the comments internationally compatible!
+
+Here's a screenshot of it at work:  
+![viola_joke](https://github.com/tylerbmusic/String-Chord-Playability-Identifier/assets/126616809/56bb1f30-7dbf-4f08-9d5f-00e4302c9d2d)
