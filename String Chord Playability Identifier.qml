@@ -1,3 +1,27 @@
+/*MS3 MIDI Pitch getter code
+import QtQuick 2.0
+import MuseScore 3.0
+
+MuseScore {
+      menuPath: "Plugins.pluginName"
+      description: "Description goes here"
+      version: "1.0"
+      onRun: {
+            var cursor = curScore.newCursor()
+            cursor.rewind(0)
+            while (cursor.segment) {
+                  if (cursor.element && cursor.element.type == 93) {
+                        tBL(cursor.element.notes[0].pitch)
+                        }
+                        cursor.next()
+                        }
+            Qt.quit()
+            }
+      }
+*/
+
+
+
 import QtQuick 2.9
 import QtQuick.Controls 2.2
 import MuseScore 3.0
@@ -25,14 +49,26 @@ MuseScore {
     	5. If a note is on an open string, a finger should not be taken, but the string should be marked as taken. //Implemented
     	6. If a double stop is unplayable, the function should return false; If the double stop is playable, the function should return true.
     	7. The array follows the format range[position][string][finger][rangeNo] where rangeNo=0 is the lowest bound and rangeNo=1 is the highest. //Implemented
+        8. The same finger can be taken twice if it is needed on two adjacent strings. //Implemented
     */    
+    function tBL(text) { //textBoxLog
+        consoleBox.text += text + "\n\n";
+    }
     function chordPlayable(notes, openStrings, range) { //Notes: cursor.element.notes; openStrings: oS; range: range;
+        var debugNotes = "notes: ";
+        for (var i = 0; i < notes.length; i++) {
+            debugNotes += notes[i].pitch + " "
+        }
+        tBL(debugNotes);
+        tBL("openStrings: " + openStrings);
+        tBL("range: " + range);
+        var bestCase = false;
         var noteDone; //Tracks whether the note is accounted for.
         var badPitch = ""; //The bad pitches will be stored in this variable.
         for (var position = 0; position < range.length; position++) { //Finger position
             badPitch = ""; //Reset the bad pitches so it doesn't cause a whole lotta confusion and repetition
             var ret = 0; //This should match notes.length by the end.
-            var stringsTaken = [false, false, false, false]; //Tracks whether each string is taken
+            var stringsTaken = [-1, -1, -1, -1]; //Tracks whether each string is taken, and what finger the string is on.
             var fingersTaken = [false, false, false, false]; //Tracks whether each finger is taken
             var note; //Current note
             var pitch; //Current pitch
@@ -41,35 +77,44 @@ MuseScore {
                 note = notes[noteI]; //Current note
                 pitch = note.pitch; //Current pitch
                 for (var openSI = 0; openSI < openStrings.length; openSI++) { //open String Index
-                    if ((pitch == openStrings[openSI]) && (stringsTaken[openSI] == false)) { //If the pitch matches an open string and the string isn't taken,
-                        stringsTaken[openSI] = true; //Take the string.
+                    if ((pitch == openStrings[openSI]) && (stringsTaken[openSI] == -1)) { //If the pitch matches an open string and the string isn't taken,
+                        stringsTaken[openSI] = -2; //Take the string. -2 means open.
                         noteDone = true; //It's been accounted for.
                         ret++; //This note is playable.
+                        tBL("OPEN STRING: " + pitch);
                     } //End open string if statement
                 } //End open String Index loop
                 if (noteDone == false) { //Only keep checking if it's playable if it hasn't already been marked as playable.
+                    var foundPosition = false; //Keeps track of a valid position
                     for (var string = 0; string < range[position].length; string++) { //String number
                         for (var finger = 0; finger < range[position][string].length; finger++) { //Finger number
                             if ((pitch >= range[position][string][finger][0]) && (pitch <= range[position][string][finger][1])) { //If the note is in range
-                                if ((stringsTaken[string] == false) && (fingersTaken[finger] == false)) {
-                                    stringsTaken[string] = true; //Take the string.
+                                if ((stringsTaken[string] == -1) && ((fingersTaken[finger] == false) || ((string > 0) && (stringsTaken[string-1] == finger)) || ((string < 3) && (stringsTaken[string+1] == finger)))) {
+                                    stringsTaken[string] = finger; //Take the string.
                                     fingersTaken[finger] = true; //Take the note.
                                     noteDone = true; //It's been accounted for.
                                     ret++; //This note is playable.
+                                    foundPosition = true;
+                                    tBL(pitch + ", " + position + ", " + string + ", " + finger + "; " + stringsTaken + " and finally, " + fingersTaken)
+                                    break;
                                 } //End strings & fingers taken if statment
                             } //End note in range if statement
-                            if (noteDone) { break; } //Break the loop if the note is accounted for
                         } //End Finger number loop
-                        if (noteDone) { break; } //Break the loop if the note is accounted for
+                        if (foundPosition) break; //Break the loop if position found
                     } //End string number loop
                 } //End noteDone if statement
+                /*if (!noteDone) {
+                    break;
+                }*/
             } //End Note Index loop
             if (ret == notes.length) { //If all notes are playable together,
-                return true; //Return true, breaking all loops. In this case, true means the double stop is playable.
-                console.log("1"); //Testing purposes (there was a bug where any double stop would trigger a false.)
-            }//End all notes playable if statement
+                bestCase = true; //Return true, breaking all loops. In this case, true means the double stop is playable.
+                break;
+            } else {//End all notes playable if statement
+                tBL(stringsTaken);
+            }
         } //End Finger position loop
-        return false; //If true hasn't been returned, return false.
+        return bestCase;
     } //End chordPlayable
 
     onRun: {
@@ -105,16 +150,16 @@ MuseScore {
                         range = [ //Master array
                             [ //First position
                                 [ //String 1
-                                    [56,57],[58,59],[60,61],[62,62] //finger ranges
+                                    [56,58],[58,60],[59,61],[61,63] //finger ranges
                                 ],//End String 1
                                 [ //String 2
-                                    [63,64],[65,66],[67,68],[69,69] //finger ranges
+                                    [63,65],[65,67],[66,68],[68,70] //finger ranges
                                 ],//End String 2
                                 [ //String 3
-                                    [70,71],[72,73],[74,75],[76,76] //finger ranges
+                                    [70,72],[72,74],[73,75],[75,77] //finger ranges
                                 ],//End String 3
                                 [ //String 4
-                                    [77,78],[79,80],[81,82],[83,100] //finger ranges
+                                    [77,79],[79,81],[80,82],[82,84] //finger ranges
                                 ] //End String 4
                             ],//End First position
                             [ //Second position
@@ -122,7 +167,7 @@ MuseScore {
                                     [58,59],[60,61],[62,63],[64,64] //finger ranges
                                 ],//End String 1
                                 [ //String 2
-                                    [35,66],[67,68],[69,70],[71,71] //finger ranges
+                                    [66,66],[67,68],[69,70],[71,71] //finger ranges
                                 ],//End String 2
                                 [ //String 3
                                     [72,73],[74,75],[76,76],[77,77] //finger ranges
@@ -172,7 +217,35 @@ MuseScore {
                                 [ //String 4
                                     [84,85],[86,87],[88,88],[89,90] //finger ranges
                                 ] //End String 4
-                            ] //End Fifth position
+                            ],//End Fifth position
+                            [ //Sixth position
+                                [ //String 1
+                                    [65,66],[66,68],[68,70],[70,71] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [72,73],[73,75],[75,76],[76,77] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [79,80],[80,82],[82,83],[83,84] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [86,87],[87,88],[89,90],[90,91] //finger ranges
+                                ] //End String 4
+                            ],//End Sixth position
+                            [ //Seventh position
+                                [ //String 1
+                                    [67,68],[68,70],[70,71],[71,72] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [74,75],[75,76],[77,78],[78,79] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [81,82],[82,83],[84,85],[85,86] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [88,89],[89,90],[90,92],[92,93] //finger ranges
+                                ] //End String 4
+                            ] //End Seventh position
                         ]; //One down, 2 more /*hours*/years to go
                         //Oh wait, other sources show violins have seven positions, and half positions, and more... I'm not doing all that. On to the viola!
                     } else if (cursor.element.staff.part.instrumentId == 'strings.viola') {
@@ -234,8 +307,50 @@ MuseScore {
                                 [ //String 4
                                     [76,77],[77,78],[78,80],[80,81] //finger ranges
                                 ] //End String 4
-                            ] //End Fourth position
-                        ]; //Two down! I'm not yet implementing choices to the array (the option of a note to be played by two different fingers) because that's complicated. It's not a great idea, but I'll probably end up making a second array with the alternate fingering and loop through that one as well. Or I may just mark it as unsupported.
+                            ],//End Fourth position
+                            [ //Fifth position
+                                [ //String 1
+                                    [57,58],[58,59],[60,61],[61,62] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [64,64],[65,66],[66,68],[68,69/*nice*/] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [71,71],[72,73],[73,75],[75,76] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [77,78],[78,80],[80,82],[82,83] //finger ranges
+                                ] //End String 4
+                            ],//End Fifth position
+                            [ //Sixth position
+                                [ //String 1
+                                    [59,59],[60,61],[61,63],[63,64] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [65,66],[66,68],[68,70],[70,71] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [72,73],[73,75],[75,76],[77,77] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [79,80],[80,82],[82,83],[84,84] //finger ranges
+                                ] //End String 4
+                            ],//End Sixth position
+                            [ //Seventh position
+                                [ //String 1
+                                    [60,61],[61,63],[63,64],[65,65] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [67,68],[68,70],[70,71],[72,72] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [74,75],[75,76],[77,78],[78,79] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [81,82],[82,83],[84,85],[85,86] //finger ranges
+                                ] //End String 4
+                            ] //End Seventh position
+                        ]; //Two down!
                     } else if (cursor.element.staff.part.instrumentId == 'strings.cello') {
                         validInstrument = true;
                         oS = [36, 43, 50, 57];
@@ -286,14 +401,56 @@ MuseScore {
                                 [ //String 4
                                     [64,64],[65,65],[66,66],[67,67] //finger ranges
                                 ] //End String 4
-                            ] //End Fourth position
+                            ],//End Fourth position
+                            [ //Fifth position
+                                [ //String 1
+                                    [45,45],[46,47],[47,48] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [52,52],[53,54],[54,55] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [59,59],[60,61],[61,62] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [65,65],[66,67],[67,68] //finger ranges
+                                ] //End String 4
+                            ],//End Fifth position
+                            [ //Sixth position
+                                [ //String 1
+                                    [46,47],[47,49],[49,50] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [53,54],[54,56],[56,57] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [60,61],[61,63],[63,64] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [67,68],[68,70],[70,71] //finger ranges
+                                ] //End String 4
+                            ],//End Sixth position
+                            [ //Seventh position
+                                [ //String 1
+                                    [48,49],[49,50],[51,51] //finger ranges
+                                ],//End String 1
+                                [ //String 2
+                                    [55,56],[56,57],[58,58] //finger ranges
+                                ],//End String 2
+                                [ //String 3
+                                    [62,63],[63,64],[65,65] //finger ranges
+                                ],//End String 3
+                                [ //String 4
+                                    [69,70],[70,71],[72,72] //finger ranges
+                                ] //End String 4
+                            ] //End Seventh position
                         ]; //End Master array
                         //Yay! I'm done with that! Now I have to implement the logic to make my work show.
                     } //End instrument if else-if statements
                     if (validInstrument && cursor.element.notes[1] != undefined) {
                         var notes = cursor.element.notes;
                         var good = chordPlayable(notes, oS, range);;
-                        console.log(good);
+                        tBL(good);
                         if (!good) {
                             var measureNo = (cursor.tick / ((cursor.measure.timesigActual.numerator * division) / (cursor.measure.timesigActual.denominator * 0.25))) + 1;
                             var minutes = Math.round(Math.floor((cursor.time / 1000) / 60)*10)/10; //A bit of math(s)
@@ -312,11 +469,17 @@ MuseScore {
         }
         box.text = fT;
         box.open();
+        //consoleBox.open(); //This was for debugging purposes. This line will most likely be removed in version 1.0.0
     } //End onRun
     //UI
     MessageDialog {
         id: box
         text: "Nope!"
         title: "Open String Checker"
+    }
+    MessageDialog {
+        id: consoleBox
+        text: ""
+        title: "Console logs"
     }
 }
