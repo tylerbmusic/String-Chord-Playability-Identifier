@@ -1,44 +1,17 @@
-/*MS3 MIDI Pitch getter code
-import QtQuick 2.0
-import MuseScore 3.0
-
-MuseScore {
-      menuPath: "Plugins.pluginName"
-      description: "Description goes here"
-      version: "1.0"
-      onRun: {
-            var cursor = curScore.newCursor()
-            cursor.rewind(0)
-            while (cursor.segment) {
-                  if (cursor.element && cursor.element.type == 93) {
-                        tBL(cursor.element.notes[0].pitch)
-                        }
-                        cursor.next()
-                        }
-            Qt.quit()
-            }
-      }
-*/
-
-
-
-import QtQuick 2.9
-import QtQuick.Controls 2.2
+import QtQuick 2.1
+import QtQuick.Controls 2.15
 import MuseScore 3.0
 import QtQuick.Window 2.2
-import QtQuick.Dialogs 1.2
-import QtQuick.Controls.Styles 1.4
-import QtQuick.Layouts 1.1
-import Qt.labs.settings 1.0
+import QtQuick.Layouts 1.15
 MuseScore {
     menuPath: "Plugins.String Chord Playability Identifier"
-    version: "0.2"
+    version: "0.4"
     description: "Tells you if your selected chord is playable on the instrument (works for violin/viola/cello)."
     title: "String Chord Playability Identifier"
     requiresScore: true
     categoryCode: "composing-arranging-tools"
-    thumbnailName: "identifier.png"
-    id: waoejif
+    thumbnailName: "string_identifier.png"
+    id: wiefrn
 
     /*
     Rules and Notes for Double Stops:
@@ -47,7 +20,7 @@ MuseScore {
     	3. Each string should be taken only once. //Implememnted
     	4. The note should be inside the finger range, inclusive [lowest,highest]. //Implemented
     	5. If a note is on an open string, a finger should not be taken, but the string should be marked as taken. //Implemented
-    	6. If a double stop is unplayable, the function should return false; If the double stop is playable, the function should return true.
+    	6. If a double stop is unplayable, the function should return false; If the double stop is playable, the function should return true. //Implemented
     	7. The array follows the format range[position][string][finger][rangeNo] where rangeNo=0 is the lowest bound and rangeNo=1 is the highest. //Implemented
         8. The same finger can be taken twice if it is needed on two adjacent strings. //Implemented
     */    
@@ -118,7 +91,7 @@ MuseScore {
     } //End chordPlayable
 
     onRun: {
-        waoejif.visible = false;
+        wiefrn.visible = false;
         var fullScore = false;
         if (typeof curScore === 'undefined') return;
         var cursor = curScore.newCursor();
